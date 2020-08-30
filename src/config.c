@@ -104,6 +104,29 @@ err:
 	return false;
 }
 
+static inline bool parse_listendev(uint32_t *listenindex, uint32_t *flags, const char *value)
+{
+	unsigned long ret;
+	char *end;
+
+	if (!strcasecmp(value, "off")) {
+		*listenindex = 0;
+		*flags |= WGDEVICE_HAS_LISTENINDEX;
+		return true;
+	}
+
+	ret = strtoul(value, &end, 10);
+	if (*end || ret > UINT32_MAX)
+		goto err;
+
+	*listenindex = ret;
+	*flags |= WGDEVICE_HAS_LISTENINDEX;
+	return true;
+err:
+	fprintf(stderr, "LISTENINDEX is invalid: `%s'\n", value);
+	return false;
+}
+
 static inline bool parse_key(uint8_t key[static WG_KEY_LEN], const char *value)
 {
 	if (!key_from_base64(key, value)) {
@@ -579,6 +602,11 @@ struct wgdevice *config_read_cmd(char *argv[], int argc)
 			argc -= 2;
 		} else if (!strcmp(argv[0], "fwmark") && argc >= 2 && !peer) {
 			if (!parse_fwmark(&device->fwmark, &device->flags, argv[1]))
+				goto error;
+			argv += 2;
+			argc -= 2;
+		} else if (!strcmp(argv[0], "listen-dev") && argc >= 2 && !peer) {
+			if (!parse_listendev(&device->listenindex, &device->flags, argv[1]))
 				goto error;
 			argv += 2;
 			argc -= 2;
